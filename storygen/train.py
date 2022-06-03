@@ -12,12 +12,12 @@ import pickle
 from tqdm import tqdm
 import json
 
-from config import cfg
-from utils import mkdir_p
-from utils import weights_init
-from utils import save_story_results, save_model, save_test_samples
-from utils import KL_loss
-from utils import compute_discriminator_loss, compute_generator_loss, compute_dual_densecap_loss
+from .config import cfg
+from .utils import mkdir_p
+from .utils import weights_init
+from .utils import save_story_results, save_model, save_test_samples
+from .utils import KL_loss
+from .utils import compute_discriminator_loss, compute_generator_loss, compute_dual_densecap_loss
 from shutil import copyfile
 from torchvision.models import vgg16
 
@@ -38,8 +38,29 @@ class gan_trainer(object):
         torch.cuda.set_device(self.gpus[0])
         cudnn.benchmark = True
         self.cfg = cfg
-        
+    
+    # ############# For training stageI GAN #############
+    def load_network_stageI(self):
+        from model import StoryGAN, STAGE1_D_IMG, STAGE1_D_STY_V2, StoryMartGAN
+        netG = StoryGAN(self.cfg, self.video_len)
+        netG.apply(weights_init)
+        print(netG)
+        netD_im = None
+        netD_st = None
+        if self.cfg.CUDA:
+            netG.cuda()
+
+        total_params = sum(p.numel() for p in netD_st.parameters() if p.requires_grad) + sum(
+            p.numel() for p in netD_im.parameters() if p.requires_grad) + sum(
+            p.numel() for p in netG.parameters() if p.requires_grad)
+        print("Total Parameters: %s", total_params)
+
+        return netG, netD_im, netD_st
+    
     def sample_real_image_batch(self):
+        """
+        Iterate the ImageLoader
+        """
         if self.imagedataset is None:
             self.imagedataset = enumerate(self.imageloader)
             batch_idx, batch = next(self.imagedataset)
@@ -100,8 +121,8 @@ class gan_trainer(object):
                 ######################################################
                 # (1) Prepare training data
                 ######################################################
-                im_batch = self.sample_real_image_batch()
-                st_batch = data
+                im_batch = self.sample_real_image_batch() # im_batch iterate images
+                st_batch = data 
 
                 im_real_cpu = im_batch['images']
                 im_motion_input = im_batch['description'][:, :self.cfg.TEXT.DIMENSION]
@@ -143,7 +164,7 @@ class gan_trainer(object):
                 st_motion_input = torch.cat((st_motion_input, st_labels), 2)
         
         
-              #######################################################
+                #######################################################
                 # (2) Generate fake stories and images
                 ######################################################
 
@@ -170,7 +191,7 @@ class gan_trainer(object):
                 st_errD = torch.tensor(0)
                 stD_loss_report = {}
                 
-                 ############################
+                ############################
                 # (2) Update G network
                 ###########################
                 # TODO: Add config parameter for number of generator steps
