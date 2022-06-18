@@ -41,7 +41,7 @@ class gan_trainer(object):
     
     # ############# For training stageI GAN #############
     def load_network_stageI(self):
-        from model import StoryGAN, STAGE1_D_IMG, STAGE1_D_STY_V2, StoryMartGAN
+        from .model import StoryGAN, STAGE1_D_IMG, STAGE1_D_STY_V2, StoryMartGAN
         netG = StoryGAN(self.cfg, self.video_len)
         netG.apply(weights_init)
         print(netG)

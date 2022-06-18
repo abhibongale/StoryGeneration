@@ -6,7 +6,7 @@ from .config import cfg
 from torch.autograd import Variable
 #from .recurrent import BertEncoderWithMemory, BertEmbeddings, NonRecurTransformer, BertEncoderWithMemoryForTree
 from easydict import EasyDict as edict
-#from .layers import DynamicFilterLayer1D as DynamicFilterLayer
+from .layers import DynamicFilterLayer1D as DynamicFilterLayer
 #from .GLAttention import GLAttentionGeneral as ATT_NET
 #from .cross_attention import LxmertCrossAttentionLayer as CrossAttn
 from torchvision import models
@@ -81,13 +81,14 @@ class CA_NET(nn.Module):
     # (https://github.com/pytorch/examples/blob/master/vae/main.py)
     def __init__(self):
         super(CA_NET, self).__init__()
-        self.t_dim = cfg.TEXT.DIMENSION * cfg.VIDEO_LEN
-        self.c_dim = cfg.GAN.CONDITION_DIM
+        self.t_dim = cfg.TEXT.DIMENSION * cfg.VIDEO_LEN # 128 * 5
+        self.c_dim = cfg.GAN.CONDITION_DIM # 128
         self.fc = nn.Linear(self.t_dim, self.c_dim * 2, bias=True)
         self.relu = nn.ReLU()
 
     def encode(self, text_embedding):
         x = self.relu(self.fc(text_embedding))
+        print("CA_NET x shape: ", x.shape)
         mu = x[:, :self.c_dim]
         logvar = x[:, self.c_dim:]
         print("mu:" + mu + "\n")
@@ -113,10 +114,10 @@ class StoryGAN(nn.Module):
     def __init__(self, cfg, video_len):
         super(StoryGAN, self).__init__()
         self.cfg = cfg
-        self.gf_dim = cfg.GAN.GF_DIM * 8
-        self.motion_dim = cfg.TEXT.DIMENSION + cfg.LABEL_NUM
-        self.content_dim = cfg.GAN.CONDITION_DIM  # encoded text dim
-        self.noise_dim = cfg.GAN.Z_DIM  # noise
+        self.gf_dim = cfg.GAN.GF_DIM * 8 # 128 * 8
+        self.motion_dim = cfg.TEXT.DIMENSION + cfg.LABEL_NUM # (128 + 10)
+        self.content_dim = cfg.GAN.CONDITION_DIM  # encoded text dim (128)
+        self.noise_dim = cfg.GAN.Z_DIM  # noise (Z_DIM = 100)
         self.recurrent = nn.GRUCell(self.noise_dim + self.motion_dim, self.motion_dim)
         self.mocornn = nn.GRUCell(self.motion_dim, self.content_dim)
         self.video_len = video_len
@@ -129,8 +130,8 @@ class StoryGAN(nn.Module):
     
 
     def define_module(self):
-        ninput = self.motion_dim + self.content_dim + self.image_size
-        ngf = self.gf_dim
+        ninput = self.motion_dim + self.content_dim + self.image_size # (138 + 128 + 124)
+        ngf = self.gf_dim # 128*8
         print("ngf " + ngf)
 
         self.ca_net = CA_NET()
